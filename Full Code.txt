@@ -1,0 +1,119 @@
+import sys 
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import scipy
+import sklearn
+
+data = pd.read_csv('creditcard.csv')
+
+#What is in column of data set
+#in class 0 means normal trans
+#in class 1 means fraud trans
+#Amount displays amount in transaction
+print(data.columns)
+
+   Index([u'Time', u'V1', u'V2', u'V3', u'V4', u'V5', u'V6', u'V7', u'V8', u'V9',
+       u'V10', u'V11', u'V12', u'V13', u'V14', u'V15', u'V16', u'V17', u'V18',
+       u'V19', u'V20', u'V21', u'V22', u'V23', u'V24', u'V25', u'V26', u'V27',
+       u'V28', u'Amount', u'Class'],
+      dtype='object')
+
+print(data.shape)
+    (284807, 31)
+print(data.describe())
+#count are same meaning the data is not missing
+
+   Entire data set prnts
+data = data.sample(frac = 0.1, random_state = 1)# Only 10% of all data we are using it..
+print(data.shape)
+
+   (28481, 31)
+
+#plot histogram
+data.hist(figsize = (20,20))
+plt.show()
+  
+  
+#Determine no. of fraud case
+Fraud = data[data['Class']==1]
+Valid = data[data['Class']==0]
+
+outlier_fun = float(len(Fraud)) / float(len(Valid))
+print(outlier_fun)
+print('Fraud cases: {}'.format(len(Fraud)))
+print('Valid cases: {}'.format(len(Valid)))
+
+
+#COrrelation matrix
+corrmat = data.corr()
+fig = plt.figure(figsize = (12,9))
+sns.heatmap(corrmat, vmax=.8, square= True)
+plt.show()
+
+
+#Get all columns from data set
+columns = data.columns.tolist()
+
+#filter column , the data we don't want
+columns = [c for c in columns if c not in ["Class"]]
+target = 'Class'
+
+X= data[columns]
+Y= data[target] #Only columns
+
+print(X.shape)
+print(Y.shape)
+
+
+
+
+
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.ensemble import IsolationForest # random selection 
+from sklearn.neighbors import LocalOutlierFactor #unsupervised- how isolate obj from negh
+
+#random state
+state = 1
+
+#define outlier detection methods
+classifiers = {
+    "Isolation Forest": IsolationForest(max_samples=len(X),
+                                       contamination = outlier_fun,
+                                       random_state = state),
+    "Local Outlier Factor": LocalOutlierFactor(
+    n_neighbors = 20,
+    contamination = outlier_fun)
+    
+}
+
+
+
+
+
+
+
+#fit the model
+n_outliers = len(Fraud)
+
+for i, (clf_name, clf) in enumerate(classifiers.items()):
+    
+    #fit the data and tag outliers
+    if clf_name == "Local Outlier Factor":
+        y_pred = clf.fit_predict(X)
+        scores_pred = clf.negative_outlier_factor_
+    else:
+                clf.fit(X)
+                scores_pred = clf.decision_function(X)
+                y_pred = clf.predict(X)
+                
+ # 1 for fraud and 0 for valid           
+y_pred [y_pred == 1] = 0
+y_pred [y_pred == -1] = 1 #-1 are outlier
+
+n_errors = (y_pred != Y).sum()
+
+print('{}: {}'.format(clf_name, n_errors))
+print(accuracy_score(Y, y_pred))
+print(classification_report(Y, y_pred))
